@@ -1931,6 +1931,7 @@ function mapClienteRow(row, idx) {
     mesesContrato: calcMesesDesde(row["Data entrada"]),
     dataEncerramento: row["Data de encerramento"] || "",
     diasParaEncerrar: diasAteData(row["Data de encerramento"]),
+    plano: (row["Plano"] || "").trim(),
   };
 }
 
@@ -2229,9 +2230,11 @@ function renderMetrics() {
 
   // Subtítulos dinâmicos (contagem real)
   const totalAtivos = CLIENTES_ATIVOS.length;
+  const totalConsultoria = CLIENTES_ATIVOS.filter(c => norm(c.plano) === "consultoria").length;
+  const totalAssessoria = totalAtivos - totalConsultoria;
   const totalPessoas = TIME.length;
   const subOverview = $("#overview-sub");
-  if (subOverview) subOverview.textContent = `Visão consolidada · ${totalAtivos} ${totalAtivos === 1 ? 'cliente ativo' : 'clientes ativos'} · ${totalPessoas} ${totalPessoas === 1 ? 'pessoa' : 'pessoas'} no time`;
+  if (subOverview) subOverview.textContent = `Visão consolidada · ${totalAssessoria} ${totalAssessoria === 1 ? 'cliente' : 'clientes'} em assessoria · ${totalConsultoria} em consultoria · ${totalPessoas} ${totalPessoas === 1 ? 'pessoa' : 'pessoas'} no time`;
   const subClientes = $("#clientes-sub");
   if (subClientes) subClientes.textContent = `${totalAtivos} ${totalAtivos === 1 ? 'cliente ativo' : 'clientes ativos'} · ordenados por status`;
   const subTime = $("#time-sub");
