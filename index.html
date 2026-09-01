@@ -1503,10 +1503,17 @@
   </div>
 
   <div class="capacity-section">
-    <div class="title">Capacidade do time</div>
-    <div class="sub">Ocupação atual em relação ao limite saudável</div>
-    <div id="capacity-list"></div>
+    <div class="title">Capacidade do time · Assessoria</div>
+    <div class="sub">Ocupação atual em relação ao limite saudável (clientes de assessoria)</div>
+    <div id="capacity-list-assessoria"></div>
   </div>
+
+  <div class="capacity-section">
+    <div class="title">Capacidade do time · Consultoria</div>
+    <div class="sub">Ocupação atual em relação ao limite saudável (clientes de consultoria)</div>
+    <div id="capacity-list-consultoria"></div>
+  </div>
+
 
   <div class="overview-2col">
     <div class="ov-panel">
@@ -1806,6 +1813,8 @@ function mapTimeRow(row) {
   const cap = intOrNull(row["Capacidade máxima"]);
   if (cargas !== null) obj.cargas = cargas;
   if (cap !== null) obj.capacity = cap;
+  obj.capMaxAssessoria = intOrNull(row["Capacidade máxima assessoria"]);
+  obj.capMaxConsultoria = intOrNull(row["Capacidade máxima consultoria"]);
   return obj;
 }
 
@@ -2676,11 +2685,26 @@ function showToast(msg) {
 
 // CAPACITY
 function renderCapacity() {
-  const list = $("#capacity-list");
+  renderCapacityPanel("assessoria", "#capacity-list-assessoria");
+  renderCapacityPanel("consultoria", "#capacity-list-consultoria");
+}
+
+function renderCapacityPanel(tipo, selector) {
+  const list = $(selector);
+  if (!list) return;
   list.innerHTML = "";
   const pessoas = TIME.filter(p => ["Consultor", "Consultora", "Especialista", "A definir"].includes(p.papel));
+
   pessoas.forEach(p => {
-    const pct = p.capacity > 0 ? (p.cargas / p.capacity) * 100 : 0;
+    const capMax = tipo === "assessoria" ? p.capMaxAssessoria : p.capMaxConsultoria;
+    const cargas = CLIENTES_ATIVOS.filter(c => nameMatches(c.consultor, p.nome) &&
+      (tipo === "assessoria" ? norm(c.plano) !== "consultoria" : norm(c.plano) === "consultoria")
+    ).length;
+
+    if (capMax === null && cargas === 0) return; // nada desse tipo pra essa pessoa — não polui o painel
+
+    const cap = capMax || 0;
+    const pct = cap > 0 ? (cargas / cap) * 100 : 0;
     const cls = pct >= 95 ? 'full' : pct >= 80 ? 'warn' : 'ok';
     const row = document.createElement("div");
     row.className = "cap-row";
@@ -2692,10 +2716,14 @@ function renderCapacity() {
       <div class="cap-bar">
         <div class="cap-fill ${cls}" style="width: ${Math.min(pct, 100)}%"></div>
       </div>
-      <div class="cap-val">${p.cargas}/${p.capacity}</div>
+      <div class="cap-val">${cargas}/${cap > 0 ? cap : '—'}</div>
     `;
     list.appendChild(row);
   });
+
+  if (list.innerHTML === "") {
+    list.innerHTML = `<div class="ov-empty">Nenhuma capacidade de ${tipo} cadastrada ainda (preencha "Capacidade máxima ${tipo}" na aba Time).</div>`;
+  }
 }
 
 // CONTRATOS ENCERRANDO (próximos 20 dias)
