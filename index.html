@@ -1811,10 +1811,14 @@ function mapTimeRow(row) {
   };
   const cargas = intOrNull(row["Cargas atuais"]);
   const cap = intOrNull(row["Capacidade máxima"]);
+  const capAssessoria = intOrNull(col(row, "Capacidade máxima assessoria", "Capacidade máxima Assessoria"));
+  const capConsultoria = intOrNull(col(row, "Capacidade máxima consultoria", "Capacidade máxima Consultoria"));
   if (cargas !== null) obj.cargas = cargas;
-  if (cap !== null) obj.capacity = cap;
-  obj.capMaxAssessoria = intOrNull(row["Capacidade máxima assessoria"]);
-  obj.capMaxConsultoria = intOrNull(row["Capacidade máxima consultoria"]);
+  // Capacidade total: usa a coluna única antiga se existir; senão soma as duas novas (assessoria + consultoria)
+  const capTotal = cap !== null ? cap : ((capAssessoria || 0) + (capConsultoria || 0)) || null;
+  if (capTotal !== null) obj.capacity = capTotal;
+  obj.capMaxAssessoria = capAssessoria;
+  obj.capMaxConsultoria = capConsultoria;
   return obj;
 }
 
@@ -2398,11 +2402,12 @@ function computeInsights() {
 
   // === ANALYTICAL INSIGHTS ===
 
-  // Capacity warnings (mantém)
-  consultoresAtivos.forEach(p => {
-    const ocup = p.cargas / p.capacity;
-    if (ocup >= 0.95) {
-      out.push({ priority: false, text: `<strong>${p.nome}</strong> está com <strong>${Math.round(ocup * 100)}% de capacidade</strong>. Próximo do limite — não alocar novos clientes.` });
+  // Capacity warnings (mantém) — usa analiseConsultor, que já calcula cargas
+  // com fallback automático pra contagem real de clientes (não depende mais
+  // da coluna manual "Cargas atuais").
+  analiseConsultor.forEach(s => {
+    if (s.ocupacao >= 0.95) {
+      out.push({ priority: false, text: `<strong>${s.nome}</strong> está com <strong>${Math.round(s.ocupacao * 100)}% de capacidade</strong>. Próximo do limite — não alocar novos clientes.` });
     }
   });
 
