@@ -2947,9 +2947,12 @@ function renderTime() {
   renderDiscOverview();
   const grid = $("#people-grid");
   grid.innerHTML = "";
-  const pessoasComSkills = TIME.filter(p => p.skills);
-  pessoasComSkills.forEach(p => {
-    const skillsHtml = Object.entries(p.skills).map(([nome, val]) => {
+  // Mostra TODO mundo do time — com matriz de competências quando existir
+  // (Consultor/Analista), e sem quando não existir (Líder, Especialista sem
+  // matriz cadastrada, CS, Atendimento etc.), pra ninguém sumir do painel.
+  TIME.forEach(p => {
+    const temSkills = !!p.skills;
+    const skillsHtml = temSkills ? Object.entries(p.skills).map(([nome, val]) => {
       const pct = (val / 5) * 100;
       const cls = val >= 4 ? 'high' : val <= 2 ? 'low' : '';
       return `
@@ -2959,12 +2962,10 @@ function renderTime() {
           <span class="skill-val">${val}</span>
         </div>
       `;
-    }).join('');
-    const matrizTag = ["Consultor", "Consultora", "Especialista", "A definir"].includes(p.papel)
-      ? "Matriz Consultor"
-      : (p.papel === "Analista" || p.papel === "Treinador(a)")
-        ? "Matriz Analista"
-        : "";
+    }).join('') : '';
+    const matrizTag = temSkills
+      ? (["Consultor", "Consultora", "Especialista", "A definir"].includes(p.papel) ? "Matriz Consultor" : "Matriz Analista")
+      : "";
     const card = document.createElement("div");
     card.className = "person";
     card.innerHTML = `
@@ -2977,7 +2978,7 @@ function renderTime() {
         <div class="person-status ${personStatusClass(p.status)}">${personStatusLabel(p.status)}</div>
       </div>
       ${matrizTag ? `<div class="matriz-tag">${matrizTag}</div>` : ''}
-      <div class="skills">${skillsHtml}</div>
+      ${skillsHtml ? `<div class="skills">${skillsHtml}</div>` : ''}
       ${renderDisc(p.disc)}
       ${renderInteresseConsultor(p)}
       <div class="person-foot">
