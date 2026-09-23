@@ -1363,6 +1363,9 @@
   .estrategico-tag {
     font-size: 10px; color: var(--honey); font-weight: 500; letter-spacing: 0.02em;
   }
+  .atencao-auto-tag {
+    font-size: 11px; color: var(--text-3); font-style: italic;
+  }
 
   /* ===== FEEDBACK & DESENVOLVIMENTO ===== */
   .feedback-grid {
@@ -2657,12 +2660,13 @@ function exportToAI() {
     });
   }
 
-  // Atenção por cliente
-  if (ATENCAO.length > 0) {
-    const altos = ATENCAO.filter(a => norm(a.nivel) === "alto");
+  // Atenção por cliente (manual + clientes amarelos/vermelhos automáticos)
+  const atencaoCombinada = buildAtencaoCombinada();
+  if (atencaoCombinada.length > 0) {
+    const altos = atencaoCombinada.filter(a => norm(a.nivel) === "alto");
     txt += `\n## Clientes que pedem atenção alta (${altos.length})\n`;
     altos.forEach(a => {
-      txt += `- ${a.cliente} | ${a.consultor} | perfil: ${a.perfil}${a.estrategico ? ' | ESTRATÉGICO' : ''}\n`;
+      txt += `- ${a.cliente} | ${a.consultor} | perfil: ${a.perfil || 'não cadastrado'}${a.estrategico ? ' | ESTRATÉGICO' : ''}\n`;
     });
   }
 
@@ -3545,26 +3549,49 @@ const _cartFilters = document.addEventListener("click", (e) => {
 // ============================================================
 let atencaoFilter = "all";
 
+// Combina os registros manuais da aba "Atenção por Cliente" com os clientes
+// amarelos/vermelhos da aba Clientes que ainda não têm registro manual —
+// assim ninguém em situação de risco fica de fora, sem precisar cadastrar
+// cliente por cliente. Verdes nunca entram automaticamente.
+function buildAtencaoCombinada() {
+  const manualPorCliente = new Set(ATENCAO.map(a => norm(a.cliente)));
+  const autoEntries = CLIENTES_ATIVOS
+    .filter(c => (c.status === "amarelo" || c.status === "vermelho") && !manualPorCliente.has(norm(c.nome)))
+    .map(c => ({
+      cliente: c.nome,
+      consultor: c.consultor || "",
+      perfil: "",
+      nivel: c.status === "vermelho" ? "Alto" : "Médio",
+      frequencia: "",
+      estrategico: false,
+      obs: "",
+      auto: true,
+    }));
+  return [...ATENCAO, ...autoEntries];
+}
+
 function renderAtencao() {
   const metricsEl = $("#atencao-metrics");
   const filtEl = $("#atencao-filters");
   const listaEl = $("#atencao-lista");
   if (!listaEl) return;
 
-  if (ATENCAO.length === 0) {
+  const ATENCAO_COMBINADA = buildAtencaoCombinada();
+
+  if (ATENCAO_COMBINADA.length === 0) {
     if (metricsEl) metricsEl.innerHTML = "";
     if (filtEl) filtEl.innerHTML = `<button class="chip active" data-filter="all">Todos</button>`;
-    listaEl.innerHTML = `<div class="inativos-empty">Nenhum registro ainda na aba "Atenção por Cliente" da planilha. Assim que for preenchida, os perfis aparecem aqui.</div>`;
+    listaEl.innerHTML = `<div class="inativos-empty">Nenhum cliente amarelo/vermelho no momento, e nenhum registro manual na aba "Atenção por Cliente".</div>`;
     return;
   }
 
-  const consultores = [...new Set(ATENCAO.map(a => a.consultor).filter(Boolean))].sort();
+  const consultores = [...new Set(ATENCAO_COMBINADA.map(a => a.consultor).filter(Boolean))].sort();
   if (filtEl) {
     filtEl.innerHTML = `<button class="chip${atencaoFilter === 'all' ? ' active' : ''}" data-filter="all">Todos</button>` +
       consultores.map(n => `<button class="chip${atencaoFilter === n ? ' active' : ''}" data-filter="${n}">${n}</button>`).join('');
   }
 
-  const visiveis = atencaoFilter === "all" ? ATENCAO : ATENCAO.filter(a => a.consultor === atencaoFilter);
+  const visiveis = atencaoFilter === "all" ? ATENCAO_COMBINADA : ATENCAO_COMBINADA.filter(a => a.consultor === atencaoFilter);
 
   const altos = visiveis.filter(a => norm(a.nivel) === "alto").length;
   const estrategicos = visiveis.filter(a => a.estrategico).length;
@@ -3621,7 +3648,7 @@ function renderAtencao() {
         <div class="atencao-row">
           <div style="font-weight:500;">${a.cliente}${a.estrategico ? ' <span class="estrategico-tag">★ estratégico</span>' : ''}</div>
           <div>${a.consultor}</div>
-          <div>${a.perfil || '—'}</div>
+          <div>${a.perfil || (a.auto ? '<span class="atencao-auto-tag">perfil não cadastrado</span>' : '—')}</div>
           <div><span class="nivel-tag ${norm(a.nivel)}">${a.nivel || '—'}</span></div>
           <div style="font-size:12px; color: var(--text-2);">${insight || (a.obs || '—')}</div>
         </div>
