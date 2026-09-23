@@ -1319,6 +1319,24 @@
   .cart-client-tag.vermelho { background: var(--vermelho-fill); color: var(--vermelho-text); }
   .cart-client-more { font-size: 11px; color: var(--text-3); padding: 4px 4px; }
 
+  .cart-disc-guia {
+    margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border);
+  }
+  .cart-disc-guia-title {
+    font-size: 11px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.04em;
+    margin-bottom: 8px;
+  }
+  .cart-disc-guia-row { font-size: 12px; margin-bottom: 10px; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+  .cart-disc-guia-label { color: var(--text-2); margin-right: 2px; }
+  .perfil-tag {
+    display: inline-block; font-size: 11px; padding: 3px 8px; border-radius: 10px; font-weight: 500;
+  }
+  .perfil-tag.facil { background: var(--verde-fill); color: var(--verde-text); }
+  .perfil-tag.atencao { background: var(--amarelo-fill); color: var(--amarelo-text); }
+  .cart-disc-guia-atencao { display: flex; flex-direction: column; gap: 6px; }
+  .perfil-dica { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; line-height: 1.5; }
+  .perfil-dica-texto { color: var(--text-2); }
+
   /* ===== ATENÇÃO POR CLIENTE ===== */
   .atencao-row {
     display: grid;
@@ -3399,6 +3417,73 @@ function computeCarteiras() {
   }).sort((a, b) => b.total - a.total);
 }
 
+// ============================================================
+// COMPATIBILIDADE DISC × PERFIL DE CLIENTE
+// ============================================================
+// Para cada traço dominante do consultor: com quais perfis de cliente ele
+// tem afinidade natural, e como se policiar com os perfis que não são o
+// seu ponto forte natural.
+const DISC_CLIENTE_GUIA = {
+  D: {
+    facil: ["Exigente", "Pouco responsivo"],
+    atencao: {
+      "Ansioso": "desacelere e ouça antes de ir direto pra solução — ele precisa se sentir acolhido, não só resolvido.",
+      "Orientado a dados": "leve números prontos, não só direção — esse perfil quer ver a lógica, não só a decisão.",
+      "Tranquilo": "dê espaço pro ritmo dele — evite atropelar ou parecer impaciente.",
+    }
+  },
+  I: {
+    facil: ["Tranquilo", "Ansioso"],
+    atencao: {
+      "Orientado a dados": "traga dados concretos na conversa, não só relacionamento — esse perfil quer embasamento.",
+      "Exigente": "seja mais direto e objetivo, sem enrolar — cobrança pede resposta clara, não só simpatia.",
+      "Pouco responsivo": "não insista demais — dê espaço sem sumir, esse perfil se afasta de pressão.",
+    }
+  },
+  S: {
+    facil: ["Ansioso", "Tranquilo"],
+    atencao: {
+      "Exigente": "seja mais assertivo — evitar o confronto direto pode passar insegurança pra esse perfil.",
+      "Pouco responsivo": "crie uma leve urgência — sem isso a conversa tende a se arrastar sem decisão.",
+      "Orientado a dados": "estruture a análise antes da conversa — esse perfil nota quando falta preparo.",
+    }
+  },
+  C: {
+    facil: ["Orientado a dados", "Exigente"],
+    atencao: {
+      "Ansioso": "adicione leveza e acolhimento — só fato e dado pode soar frio pra esse perfil.",
+      "Pouco responsivo": "simplifique a mensagem — excesso de detalhe reduz ainda mais o engajamento dele.",
+      "Tranquilo": "não trave em detalhe demais — mantenha o ritmo fluido pra não parecer lento.",
+    }
+  },
+};
+
+function renderPerfilDiscConsultor(pessoa) {
+  if (!pessoa || !pessoa.disc) return '';
+  const dom = discDominant(pessoa.disc);
+  const guia = DISC_CLIENTE_GUIA[dom.primary];
+  if (!guia) return '';
+  const facilHtml = guia.facil.map(p => `<span class="perfil-tag facil">${p}</span>`).join('');
+  const atencaoHtml = Object.entries(guia.atencao).map(([perfil, dica]) => `
+    <div class="perfil-dica">
+      <span class="perfil-tag atencao">${perfil}</span>
+      <span class="perfil-dica-texto">${dica}</span>
+    </div>
+  `).join('');
+  return `
+    <div class="cart-disc-guia">
+      <div class="cart-disc-guia-title">Perfil de cliente × DISC (${dom.primary} dominante)</div>
+      <div class="cart-disc-guia-row">
+        <span class="cart-disc-guia-label">Mais facilidade com:</span> ${facilHtml}
+      </div>
+      <div class="cart-disc-guia-atencao">
+        <div class="cart-disc-guia-label">Precisa se policiar com:</div>
+        ${atencaoHtml}
+      </div>
+    </div>
+  `;
+}
+
 function renderCarteiras() {
   const wrap = $("#carteiras-grid");
   const filtEl = $("#carteiras-filters");
@@ -3426,6 +3511,8 @@ function renderCarteiras() {
       <span class="cart-client-tag ${cl.status}">${shortClientName(cl.nome)}</span>
     `).join('');
     const resto = c.clientes.length > 8 ? `<span class="cart-client-more">+${c.clientes.length - 8}</span>` : '';
+    const pessoa = TIME.find(p => nameMatches(p.nome, c.consultor));
+    const discGuia = renderPerfilDiscConsultor(pessoa);
     return `
       <div class="cart-card">
         <div class="cart-card-head">
@@ -3440,6 +3527,7 @@ function renderCarteiras() {
           <div class="cart-stat fat mono">${fmtMoney(c.fatTotal)}</div>
         </div>
         <div class="cart-card-clients">${clientesHtml}${resto}</div>
+        ${discGuia}
       </div>
     `;
   }).join('');
